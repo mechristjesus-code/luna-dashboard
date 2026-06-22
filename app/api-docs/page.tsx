@@ -81,10 +81,43 @@ const ENDPOINT_GROUPS: { group: string; color: string; endpoints: Endpoint[] }[]
     ],
   },
   {
+    group: "Arbitrage",
+    color: "#00FF88",
+    endpoints: [
+      { method: "GET", path: "/api/luna/arbitrage", desc: "List all arbitrage bots with meta summary", curl: `curl -s "$LUNA/api/luna/arbitrage" | jq '{count:.count,totalPnl:.meta.totalPnl}'`, response: `{"success":true,"count":2,"data":[...],"meta":{"totalPnl":2082,"running":1,"avgWinRate":89.5}}` },
+      { method: "POST", path: "/api/luna/arbitrage", desc: "Create a new arbitrage bot", body: `{"name":"ARB-BOT-3","exchanges":["Binance","Bybit","OKX"],"coinPairs":["BTC/USDT","ETH/USDT"],"minSpreadPct":0.1,"maxInvestmentPerTrade":500}`, curl: `curl -s -X POST "$LUNA/api/luna/arbitrage" \\\n  -H "Content-Type: application/json" \\\n  -d '{"name":"ARB-BOT-3","exchanges":["Binance","Bybit"]}' | jq`, response: `{"success":true,"data":{"id":"arbXXX","name":"ARB-BOT-3",...}}` },
+      { method: "PATCH", path: "/api/luna/arbitrage", desc: "Update bot status or simulate an opportunity", body: `{"id":"arb1","action":"start"}  OR  {"id":"arb1","action":"simulate_opportunity"}`, curl: `curl -s -X PATCH "$LUNA/api/luna/arbitrage" \\\n  -H "Content-Type: application/json" \\\n  -d '{"id":"arb1","action":"simulate_opportunity"}' | jq '.opportunity'`, response: `{"success":true,"opportunity":{"spreadPct":0.28,"estimatedProfit":3.80,...}}` },
+      { method: "DELETE", path: "/api/luna/arbitrage", desc: "Delete an arbitrage bot", params: "?id=arb1", curl: `curl -s -X DELETE "$LUNA/api/luna/arbitrage?id=arb1" | jq`, response: `{"success":true,"deleted":"arb1"}` },
+    ],
+  },
+  {
+    group: "Webhook",
+    color: "#FF006E",
+    endpoints: [
+      { method: "POST", path: "/api/luna/webhook", desc: "Ingest TradingView-style webhook signal — auto-injects into signal store", body: `{"ticker":"BTCUSDT","action":"buy","indicator":"RSI","value":28.4,"threshold":30,"confidence":91,"sentiment":"bullish","source":"TradingView"}`, curl: `curl -s -X POST "$LUNA/api/luna/webhook" \\\n  -H "Content-Type: application/json" \\\n  -H "X-TradingView-Secret: your-secret" \\\n  -d '{"ticker":"BTCUSDT","action":"buy","confidence":91}' | jq`, response: `{"success":true,"signal":{"id":"whXXX","coinPair":"BTC/USDT",...},"message":"Signal injected"}` },
+      { method: "GET", path: "/api/luna/webhook", desc: "List recent webhook-sourced signals + integration instructions", curl: `curl -s "$LUNA/api/luna/webhook?limit=10" | jq '.data[].coinPair'`, response: `{"success":true,"count":3,"data":[...],"webhookUrl":"/api/luna/webhook"}` },
+    ],
+  },
+  {
+    group: "Master Control",
+    color: "#FFB700",
+    endpoints: [
+      { method: "GET", path: "/api/luna/master", desc: "Get master status and bot summary", curl: `curl -s -H "X-Luna-Key: $KEY" "$LUNA/api/luna/master" | jq '{status:.masterStatus,running:.summary.running}'`, response: `{"success":true,"masterStatus":"running","summary":{"totalBots":7,"running":4,...}}` },
+      { method: "POST", path: "/api/luna/master", desc: "Execute master control: pause_all | resume_all | stop_all", body: `{"action":"pause_all"}  OR  {"action":"resume_all"}  OR  {"action":"stop_all"}`, curl: `curl -s -X POST "$LUNA/api/luna/master" \\\n  -H "X-Luna-Key: $KEY" \\\n  -H "Content-Type: application/json" \\\n  -d '{"action":"pause_all"}' | jq`, response: `{"success":true,"action":"pause_all","masterStatus":"paused","botsAffected":7}` },
+    ],
+  },
+  {
+    group: "Live Stream",
+    color: "#9B5DE5",
+    endpoints: [
+      { method: "GET", path: "/api/luna/stream", desc: "Server-Sent Events stream — real-time bot updates, arbitrage events, heartbeat every 4s", curl: `curl -s -N "$LUNA/api/luna/stream" | head -20`, response: `data: {"type":"snapshot","activity":[...],"signals":[...]}\ndata: {"type":"bot_update","botId":"b1","totalPnl":1280}\ndata: {"type":"heartbeat","masterStatus":"running"}` },
+    ],
+  },
+  {
     group: "Chat",
     color: "#00F5FF",
     endpoints: [
-      { method: "POST", path: "/api/luna/chat", desc: "Send a message to LUNA — intelligently routed to correct layer agent", body: `{"message":"What are the active signals?"}`, curl: `curl -s -X POST "$LUNA/api/luna/chat" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Show bot performance"}' | jq '.lunaResponse.content'`, response: `{"success":true,"userMessage":{...},"lunaResponse":{"layer":"[V5:AGENT]","content":"..."}}` },
+      { method: "POST", path: "/api/luna/chat", desc: "Send a message to LUNA — AI-powered via OpenAI with live system context, falls back to rule-based router", body: `{"message":"What are the active signals?","history":[{"role":"user","content":"..."},{"role":"luna","content":"..."}]}`, curl: `curl -s -X POST "$LUNA/api/luna/chat" \\\n  -H "Content-Type: application/json" \\\n  -d '{"message":"Show arbitrage bot status"}' | jq '.lunaResponse.content'`, response: `{"success":true,"userMessage":{...},"lunaResponse":{"layer":"[V5:AGENT]","content":"..."}}` },
     ],
   },
   {

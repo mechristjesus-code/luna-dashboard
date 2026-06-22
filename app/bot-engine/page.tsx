@@ -1,10 +1,12 @@
 "use client";
+// UPGRADED v2.0: Master Control Panel, enhanced metrics, Sharpe ratio, win rate, risk scores
 
 import { useState } from "react";
 import { LunaLayout } from "@/components/luna/LunaLayout";
 import { NeonCard, MetricTile, SectionHeader } from "@/components/luna/NeonCard";
 import { StatusBadge, LiveBadge } from "@/components/luna/PulseIndicator";
 import { SEED_BOTS, SEED_STRATEGIES, TradingBot } from "@/lib/luna/data";
+import { RiskHeatmap } from "@/components/luna/RiskHeatmap";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const COIN_PAIRS = ["BTC/USDT", "ETH/USDT", "SOL/USDT", "BNB/USDT", "ARB/USDT"];
@@ -38,6 +40,21 @@ export default function BotEnginePage() {
   const liveCount = bots.filter((b) => b.mode === "live").length;
   const totalBalance = bots.reduce((s, b) => s + b.virtualBalance, 0);
   const totalPnl = bots.reduce((s, b) => s + b.totalPnl, 0);
+  const [masterStatus, setMasterStatus] = useState<"running" | "paused" | "stopped">("running");
+  const [showRiskPanel, setShowRiskPanel] = useState(false);
+
+  const masterPause = () => {
+    setBots(prev => prev.map(b => b.status === "running" ? { ...b, status: "paused" } : b));
+    setMasterStatus("paused");
+  };
+  const masterResume = () => {
+    setBots(prev => prev.map(b => b.status === "paused" ? { ...b, status: "running" } : b));
+    setMasterStatus("running");
+  };
+  const masterStop = () => {
+    setBots(prev => prev.map(b => ({ ...b, status: "stopped" })));
+    setMasterStatus("stopped");
+  };
 
   // Bot actions
   const updateBot = (id: string, patch: Partial<TradingBot>) =>
@@ -68,6 +85,9 @@ export default function BotEnginePage() {
       virtualBalance: 10000,
       totalPnl: 0,
       tradeCount: 0,
+      winRate: 0,
+      maxDrawdown: 0,
+      sharpeRatio: 0,
       pnlHistory: Array.from({ length: 24 }, (_, i) => ({ time: `${i}h`, pnl: 0 })),
     };
     setBots((prev) => [...prev, newBot]);
@@ -88,6 +108,33 @@ export default function BotEnginePage() {
 
   return (
     <LunaLayout title="BOT ENGINE" subtitle="Autonomous trading bot management · V5 Execution Agent">
+
+      {/* ── Master Control Panel ── */}
+      <NeonCard accent={masterStatus === "running" ? "green" : masterStatus === "paused" ? "amber" : "magenta"} padding={14} style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 9, color: "rgba(255,255,255,0.4)", letterSpacing: "0.12em", marginBottom: 3 }}>MASTER CONTROL</div>
+            <div style={{ fontFamily: "var(--font-inter-tight, sans-serif)", fontWeight: 700, fontSize: 13, color: masterStatus === "running" ? "#00FF88" : masterStatus === "paused" ? "#FFB700" : "#FF006E" }}>
+              {masterStatus.toUpperCase()}
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 8, marginLeft: "auto", flexWrap: "wrap" }}>
+            <button onClick={masterResume} disabled={masterStatus === "running"} style={{ ...btnBase, border: "1px solid rgba(0,255,136,0.5)", color: masterStatus === "running" ? "rgba(0,255,136,0.3)" : "#00FF88", padding: "6px 14px", cursor: masterStatus === "running" ? "not-allowed" : "pointer" }}>▶ RESUME ALL</button>
+            <button onClick={masterPause} disabled={masterStatus !== "running"} style={{ ...btnBase, border: "1px solid rgba(255,183,0,0.5)", color: masterStatus !== "running" ? "rgba(255,183,0,0.3)" : "#FFB700", padding: "6px 14px", cursor: masterStatus !== "running" ? "not-allowed" : "pointer" }}>⏸ PAUSE ALL</button>
+            <button onClick={masterStop} disabled={masterStatus === "stopped"} style={{ ...btnBase, border: "1px solid rgba(255,0,110,0.5)", color: masterStatus === "stopped" ? "rgba(255,0,110,0.3)" : "#FF006E", padding: "6px 14px", cursor: masterStatus === "stopped" ? "not-allowed" : "pointer" }}>■ STOP ALL</button>
+            <button onClick={() => setShowRiskPanel(r => !r)} style={{ ...btnBase, border: "1px solid rgba(155,93,229,0.5)", color: "#9B5DE5", padding: "6px 14px" }}>◈ RISK MAP</button>
+          </div>
+        </div>
+      </NeonCard>
+
+      {/* ── Risk Heatmap (collapsible) ── */}
+      {showRiskPanel && (
+        <NeonCard accent="violet" padding={16} style={{ marginBottom: 20 }}>
+          <SectionHeader title="RISK HEATMAP" subtitle="Portfolio exposure across all bots" accent="violet" />
+          <RiskHeatmap />
+        </NeonCard>
+      )}
+
       {/* Top Metrics */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 12, marginBottom: 24 }}>
         <MetricTile label="Total Bots" value={bots.length} accent="cyan" icon="◆" />
@@ -103,7 +150,7 @@ export default function BotEnginePage() {
       </div>
 
       {/* Bot Cards Grid */}
-      <SectionHeader title="ACTIVE BOTS" subtitle={`${bots.length} bots deployed`} accent="cyan" />
+      <SectionHeader title="ACTIVE BOTS" subtitle={`${bots.length} bots deployed · ${bots.filter(b => (b.winRate ?? 0) > 65).length} high-performers`} accent="cyan" />
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
         {bots.map((bot) => <BotCard key={bot.id} bot={bot} onUpdate={updateBot} onGoLive={handleGoLive} />)}
       </div>
@@ -195,7 +242,7 @@ function BotCard({ bot, onUpdate, onGoLive }: { bot: TradingBot; onUpdate: (id: 
       </div>
 
       {/* Balance + PnL */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 10 }}>
         <div>
           <div style={{ fontSize: 10, color: "rgba(255,255,255,0.4)", fontFamily: "var(--font-jetbrains-mono, monospace)", letterSpacing: "0.1em", marginBottom: 3 }}>VIRTUAL BALANCE</div>
           <div style={{ fontFamily: "var(--font-inter-tight, sans-serif)", fontWeight: 700, fontSize: 20, color: "#00F5FF", textShadow: "0 0 8px rgba(0,245,255,0.4)" }}>${bot.virtualBalance.toLocaleString()}</div>
@@ -206,6 +253,27 @@ function BotCard({ bot, onUpdate, onGoLive }: { bot: TradingBot; onUpdate: (id: 
             {bot.totalPnl >= 0 ? "+" : ""}${bot.totalPnl.toLocaleString()}
           </div>
         </div>
+      </div>
+      {/* Enhanced metrics row */}
+      <div style={{ display: "flex", gap: 12, marginBottom: 10, flexWrap: "wrap" }}>
+        {bot.winRate !== undefined && (
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+            Win: <span style={{ color: bot.winRate >= 65 ? "#00FF88" : bot.winRate >= 50 ? "#FFB700" : "#FF006E", fontWeight: 700 }}>{bot.winRate}%</span>
+          </span>
+        )}
+        {bot.maxDrawdown !== undefined && (
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+            DD: <span style={{ color: bot.maxDrawdown > 12 ? "#FF006E" : "rgba(255,255,255,0.6)" }}>{bot.maxDrawdown}%</span>
+          </span>
+        )}
+        {bot.sharpeRatio !== undefined && (
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+            Sharpe: <span style={{ color: bot.sharpeRatio >= 2 ? "#00FF88" : bot.sharpeRatio >= 1 ? "#FFB700" : "#FF006E" }}>{bot.sharpeRatio.toFixed(2)}</span>
+          </span>
+        )}
+        <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "rgba(255,255,255,0.4)" }}>
+          Trades: <span style={{ color: "rgba(255,255,255,0.6)" }}>{bot.tradeCount}</span>
+        </span>
       </div>
 
       {/* Mini PnL Chart */}

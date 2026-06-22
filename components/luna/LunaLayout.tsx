@@ -1,6 +1,7 @@
 "use client";
 
 import { Sidebar } from "./Sidebar";
+import { LiveStreamIndicator } from "./LiveStreamIndicator";
 
 interface LunaLayoutProps {
   children: React.ReactNode;
@@ -45,7 +46,10 @@ export function LunaLayout({ children, title, subtitle, headerRight }: LunaLayou
                 </p>
               )}
             </div>
-            {headerRight && <div>{headerRight}</div>}
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+              <LiveStreamIndicator />
+              {headerRight && <div>{headerRight}</div>}
+            </div>
           </div>
         )}
         <main style={{ flex: 1, padding: "20px 24px", overflow: "auto" }}>

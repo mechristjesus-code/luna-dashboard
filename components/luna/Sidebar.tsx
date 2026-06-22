@@ -25,6 +25,7 @@ const BOT_ITEMS: NavItem[] = [
   { href: "/dca-bot", label: "DCA Bots", icon: "⬇" },
   { href: "/signal-bot", label: "Signal Bots", icon: "📡" },
   { href: "/grid-bot", label: "Grid Bots", icon: "▦" },
+  { href: "/arbitrage-bot", label: "Arbitrage Bot", icon: "⚡", badge: "NEW", badgeColor: "#00FF88" },
   { href: "/smarttrade", label: "SmartTrade", icon: "◎" },
   { href: "/bot-performance", label: "Bot Performance", icon: "📈" },
   { href: "/strategy-builder", label: "Strategy Builder", icon: "◧" },
@@ -38,6 +39,7 @@ const ANALYTICS_ITEMS: NavItem[] = [
 const ADMIN_ITEMS: NavItem[] = [
   { href: "/admin-terminal", label: "Admin Terminal", icon: "⌥", badge: "TERM", badgeColor: "#FFB700" },
   { href: "/api-docs", label: "API Docs", icon: "📋", badge: "REST", badgeColor: "#9B5DE5" },
+  { href: "/webhook", label: "Webhook Signals", icon: "◉", badge: "NEW", badgeColor: "#FF006E" },
   { href: "/downloads", label: "Downloads", icon: "⬇", badge: "ZIP+APK", badgeColor: "#00FF88" },
 ];
 
@@ -271,10 +273,15 @@ export function Sidebar() {
 
       {/* System Status Footer */}
       <div style={{ padding: "10px 16px", borderTop: "1px solid rgba(0,245,255,0.1)", background: "rgba(0,0,0,0.3)" }}>
-        <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 9, color: "rgba(0,245,255,0.4)", letterSpacing: "0.12em", marginBottom: 5 }}>SYSTEM STATUS</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 9, color: "rgba(0,245,255,0.4)", letterSpacing: "0.12em", marginBottom: 5 }}>SYSTEM STATUS · V2.0</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
           <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#00FF88", boxShadow: "0 0 6px #00FF88", display: "inline-block" }} />
           <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "#00FF88" }}>ALL SYSTEMS NOMINAL</span>
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 8, color: "rgba(0,245,255,0.5)", border: "1px solid rgba(0,245,255,0.15)", borderRadius: 3, padding: "1px 5px" }}>ARB ⚡</span>
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 8, color: "rgba(0,255,136,0.5)", border: "1px solid rgba(0,255,136,0.15)", borderRadius: 3, padding: "1px 5px" }}>AI CHAT</span>
+          <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 8, color: "rgba(255,0,110,0.5)", border: "1px solid rgba(255,0,110,0.15)", borderRadius: 3, padding: "1px 5px" }}>WEBHOOK</span>
         </div>
       </div>
     </aside>

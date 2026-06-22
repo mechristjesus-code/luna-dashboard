@@ -89,57 +89,25 @@ function fmt(d: Date) {
   return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }
 
-// ── Response generator ────────────────────────────────────────────────────────
-
-function generateLunaResponse(msg: string): { layer: string; content: string } {
-  const m = msg.toLowerCase();
-  if (m.match(/signal|rsi|crypto/)) {
-    return {
-      layer: "[V2:COGNITION]",
-      content:
-        "Crypto Signal Analysis:\n• BTC/USDT RSI: 28.4 → Oversold zone, potential reversal\n• ETH volume spike: +340% in last 2h\n• SOL/USDT MACD crossover detected (bullish)\n• DOGE sentiment score: 0.72 (positive)\n\nRecommended action: Monitor BTC/USDT for long entry above $42,500.",
-    };
+// ── AI-powered response via /api/luna/chat ────────────────────────────────────
+async function callLunaAPI(message: string, history: ChatMessage[]): Promise<{ layer: string; content: string }> {
+  try {
+    const res = await fetch('/api/luna/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        history: history.slice(-8).map(m => ({ role: m.role, content: m.content })),
+      }),
+    });
+    const data = await res.json();
+    if (data.success && data.lunaResponse) {
+      return { layer: data.lunaResponse.layer ?? '[V1:COGNITION]', content: data.lunaResponse.content };
+    }
+    return { layer: '[V1:COGNITION]', content: data.error ?? 'LUNA API unavailable.' };
+  } catch {
+    return { layer: '[V1:COGNITION]', content: 'Connection error. LUNA is operating in offline mode.' };
   }
-  if (m.match(/bot|trade|execute/)) {
-    return {
-      layer: "[V5:AGENT]",
-      content:
-        "Trading Bot Status:\n• Bot-Alpha (BTC scalp): ACTIVE — +2.4% today\n• Bot-Beta (ETH swing): ACTIVE — +1.1% today\n• Bot-Gamma (SOL momentum): SIM — running backtest\n• Bot-Delta (multi-asset): SIM — paper trading\n\nTotal simulated P&L today: +$3,247. Live bot P&L: +$1,820.",
-    };
-  }
-  if (m.match(/revenue|mrr|company|saas/)) {
-    return {
-      layer: "[V7:ECONOMY]",
-      content:
-        "Economy Metrics:\n• Simulated MRR: $127,840 (+12.3% MoM)\n• ARR Projection: $1.53M\n• Active subscriptions: 847\n• Churn rate: 2.1%\n• LTV/CAC ratio: 4.8x\n\nNext milestone: $150K MRR. ETA at current growth: 47 days.",
-    };
-  }
-  if (m.match(/deploy|api|service/)) {
-    return {
-      layer: "[V9:ECONOMY]",
-      content:
-        "Deployment Status:\n• API Gateway: ONLINE (99.97% uptime)\n• 14 microservices running\n• 3 services pending update (non-critical)\n• Database clusters: 4 healthy\n• CDN latency: 18ms avg\n\nNo deployment actions required. All SLAs met.",
-    };
-  }
-  if (m.match(/strategy|backtest/)) {
-    return {
-      layer: "[V4:AGENT]",
-      content:
-        "Strategy Backtest Results (90-day):\n• Mean Reversion BTC: Sharpe 2.14, +34.7%\n• Momentum ETH: Sharpe 1.87, +28.3%\n• Breakout SOL: Sharpe 1.62, +41.2%\n• Grid BTC/USDT: Sharpe 3.01, +19.8%\n\nTop performer: Grid strategy. Recommend allocating 40% capital to BTC grid.",
-    };
-  }
-  if (m.match(/ecosystem|expand/)) {
-    return {
-      layer: "[V12:ECOSYSTEM]",
-      content:
-        "Ecosystem Graph Status:\n• 23 active integrations\n• 7 partner nodes connected\n• Data flows: 1,240 events/min\n• New expansion opportunity: DeFi protocol integration (est. +$8K MRR)\n• Ecosystem health score: 91/100\n\nRecommend activating V11:PARTNER for new node onboarding.",
-    };
-  }
-  return {
-    layer: "[V1:COGNITION]",
-    content:
-      "Processing your request through cognitive analysis...\n\nBased on current operational patterns, system confidence is at 94%. All primary objectives are within expected parameters. Cross-referencing with historical data suggests optimal resource allocation is maintaining current trajectory.\n\nIs there a specific domain you'd like me to analyze further?",
-  };
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
@@ -155,7 +123,7 @@ export default function ChatConsolePage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
 
-  function sendMessage() {
+  async function sendMessage() {
     const text = input.trim();
     if (!text || isTyping) return;
     const userMsg: ChatMessage = {
@@ -168,8 +136,8 @@ export default function ChatConsolePage() {
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setIsTyping(true);
-    setTimeout(() => {
-      const { layer, content } = generateLunaResponse(text);
+    try {
+      const { layer, content } = await callLunaAPI(text, messages);
       const lunaMsg: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "luna",
@@ -178,8 +146,9 @@ export default function ChatConsolePage() {
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, lunaMsg]);
+    } finally {
       setIsTyping(false);
-    }, 1200);
+    }
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
