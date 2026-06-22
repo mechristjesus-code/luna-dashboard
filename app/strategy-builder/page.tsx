@@ -42,6 +42,43 @@ function makePnlCurve(trend = 30) {
   }));
 }
 
+// Generate Pine Script based on strategy configuration
+function generatePineScript(config: any): string {
+  const indicators = [];
+  if (config.useRSI) indicators.push("RSI");
+  if (config.useMACD) indicators.push("MACD");
+  if (config.useBB) indicators.push("Bollinger Bands");
+
+  const indicatorCode = `
+// Enabled Indicators: ${indicators.join(", ")}
+${config.useRSI ? `rsi_val = ta.rsi(close, ${config.rsiLen || 14})` : ""}
+${config.useMACD ? `[macd_line, signal_line, _] = ta.macd(close, ${config.macdFast || 12}, ${config.macdSlow || 26}, ${config.macdSig || 9})` : ""}
+${config.useBB ? `[bb_middle, bb_upper, bb_lower] = ta.bb(close, ${config.bbLen || 20}, ${config.bbMult || 2.0})` : ""}
+`;
+
+  return `//@version=5
+strategy("${config.name}", overlay=true, initial_capital=1000)
+
+// Strategy: ${config.name}
+// Signal Conditions: ${config.signalConditions}
+// Risk: SL ${config.stopLoss}% | TP ${config.takeProfit}%
+
+${indicatorCode}
+
+// Entry Logic
+long_condition = ${config.signalConditions || "true"}
+short_condition = not long_condition
+
+if long_condition
+    strategy.entry("Long", strategy.long)
+if short_condition
+    strategy.entry("Short", strategy.short)
+
+// Risk Management
+strategy.exit("Exit", stop=strategy.position_avg_price * (1 - ${config.stopLoss || 5}/100), limit=strategy.position_avg_price * (1 + ${config.takeProfit || 15}/100))
+`;
+}
+
 export default function StrategyBuilderPage() {
   const [strategies, setStrategies] = useState<TradingStrategy[]>(SEED_STRATEGIES);
   const [selected, setSelected] = useState<TradingStrategy | null>(null);
@@ -49,9 +86,19 @@ export default function StrategyBuilderPage() {
   const [backtestDone, setBacktestDone] = useState(false);
   const [assignBot, setAssignBot] = useState("");
   const [assignSuccess, setAssignSuccess] = useState(false);
+  const [showModules, setShowModules] = useState(false);
+  const [showPineScript, setShowPineScript] = useState(false);
+  const [showPayloadPreview, setShowPayloadPreview] = useState(false);
+  const [generatedPineScript, setGeneratedPineScript] = useState("");
+  
   const [formData, setFormData] = useState({
     name: "", signalConditions: "", entry: "RSI Oversold",
     allocation: "10", stopLoss: "5", takeProfit: "15", risk: "Moderate",
+    useRSI: true, useMACD: true, useBB: false,
+    rsiLen: "14", rsiOB: "70", rsiOS: "30",
+    macdFast: "12", macdSlow: "26", macdSig: "9",
+    bbLen: "20", bbMult: "2.0",
+    confidence: "80", mode: "signal_only", webhookSecret: "",
   });
   const [formError, setFormError] = useState("");
   const [simRunning, setSimRunning] = useState(false);
@@ -75,7 +122,7 @@ export default function StrategyBuilderPage() {
     if (assignBot) { setAssignSuccess(true); }
   };
 
-  const field = (key: keyof typeof formData, val: string) =>
+  const field = (key: keyof typeof formData, val: string | boolean) =>
     setFormData(p => ({ ...p, [key]: val }));
 
   const handleSave = () => {
@@ -90,7 +137,15 @@ export default function StrategyBuilderPage() {
       winRate: 0, maxDrawdown: 0, tradeCount: 0, pnlCurve: [],
     };
     setStrategies(p => [newS, ...p]);
-    setFormData({ name: "", signalConditions: "", entry: "RSI Oversold", allocation: "10", stopLoss: "5", takeProfit: "15", risk: "Moderate" });
+    setFormData({ 
+      name: "", signalConditions: "", entry: "RSI Oversold", 
+      allocation: "10", stopLoss: "5", takeProfit: "15", risk: "Moderate",
+      useRSI: true, useMACD: true, useBB: false,
+      rsiLen: "14", rsiOB: "70", rsiOS: "30",
+      macdFast: "12", macdSlow: "26", macdSig: "9",
+      bbLen: "20", bbMult: "2.0",
+      confidence: "80", mode: "signal_only", webhookSecret: "",
+    });
     setSimDone(false);
   };
 
@@ -112,13 +167,45 @@ export default function StrategyBuilderPage() {
       setStrategies(p => [newS, ...p]);
       setSimRunning(false); setSimDone(true);
       setSelected(newS);
-      setFormData({ name: "", signalConditions: "", entry: "RSI Oversold", allocation: "10", stopLoss: "5", takeProfit: "15", risk: "Moderate" });
+      setFormData({ 
+        name: "", signalConditions: "", entry: "RSI Oversold", 
+        allocation: "10", stopLoss: "5", takeProfit: "15", risk: "Moderate",
+        useRSI: true, useMACD: true, useBB: false,
+        rsiLen: "14", rsiOB: "70", rsiOS: "30",
+        macdFast: "12", macdSlow: "26", macdSig: "9",
+        bbLen: "20", bbMult: "2.0",
+        confidence: "80", mode: "signal_only", webhookSecret: "",
+      });
     }, 2000);
   };
 
+  const handleExportPineScript = () => {
+    const script = generatePineScript(formData);
+    setGeneratedPineScript(script);
+    setShowPineScript(true);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert("Copied to clipboard!");
+  };
+
+  const generatePayloadPreview = () => {
+    const payload = {
+      secret: formData.webhookSecret || "your_webhook_secret",
+      ticker: "BTCUSDT",
+      action: formData.signalConditions.toLowerCase().includes("buy") ? "buy" : "sell",
+      indicator: `${formData.name}_Signal`,
+      value: 65000,
+      confidence: parseInt(formData.confidence),
+      sentiment: formData.signalConditions.toLowerCase().includes("buy") ? "bullish" : "bearish",
+    };
+    return JSON.stringify(payload, null, 2);
+  };
+
   return (
-    <LunaLayout title="STRATEGY BUILDER" subtitle="V6 Extended · Define, backtest, and deploy trading strategies">
-      <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+    <LunaLayout title="STRATEGY BUILDER" subtitle="V7 Modular · Define, backtest, and deploy trading strategies with Pine Script export">
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", flexWrap: "wrap" }}>
 
         {/* LEFT: 60% */}
         <div style={{ flex: "0 0 60%", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -252,6 +339,74 @@ export default function StrategyBuilderPage() {
                 />
               </div>
 
+              {/* Modular Indicators */}
+              <div style={{ background: "rgba(155,93,229,0.08)", border: "1px solid rgba(155,93,229,0.2)", borderRadius: 6, padding: 12 }}>
+                <button
+                  style={{ ...btnStyle("#9B5DE5", "transparent", "rgba(155,93,229,0.4)"), width: "100%", marginBottom: 10 }}
+                  onClick={() => setShowModules(!showModules)}
+                >
+                  {showModules ? "▼ HIDE MODULES" : "▶ SHOW MODULES"}
+                </button>
+                {showModules && (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+                      <input type="checkbox" checked={formData.useRSI} onChange={e => field("useRSI", e.target.checked)} />
+                      <span style={labelStyle}>RSI Module</span>
+                    </label>
+                    {formData.useRSI && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginLeft: 16 }}>
+                        <div>
+                          <label style={labelStyle}>RSI Length</label>
+                          <input style={inputStyle} type="number" value={formData.rsiLen} onChange={e => field("rsiLen", e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Overbought</label>
+                          <input style={inputStyle} type="number" value={formData.rsiOB} onChange={e => field("rsiOB", e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 8 }}>
+                      <input type="checkbox" checked={formData.useMACD} onChange={e => field("useMACD", e.target.checked)} />
+                      <span style={labelStyle}>MACD Module</span>
+                    </label>
+                    {formData.useMACD && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginLeft: 16 }}>
+                        <div>
+                          <label style={labelStyle}>Fast</label>
+                          <input style={inputStyle} type="number" value={formData.macdFast} onChange={e => field("macdFast", e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Slow</label>
+                          <input style={inputStyle} type="number" value={formData.macdSlow} onChange={e => field("macdSlow", e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>Signal</label>
+                          <input style={inputStyle} type="number" value={formData.macdSig} onChange={e => field("macdSig", e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer", marginTop: 8 }}>
+                      <input type="checkbox" checked={formData.useBB} onChange={e => field("useBB", e.target.checked)} />
+                      <span style={labelStyle}>Bollinger Bands Module</span>
+                    </label>
+                    {formData.useBB && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginLeft: 16 }}>
+                        <div>
+                          <label style={labelStyle}>BB Length</label>
+                          <input style={inputStyle} type="number" value={formData.bbLen} onChange={e => field("bbLen", e.target.value)} />
+                        </div>
+                        <div>
+                          <label style={labelStyle}>BB Multiplier</label>
+                          <input style={inputStyle} type="number" step="0.1" value={formData.bbMult} onChange={e => field("bbMult", e.target.value)} />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label style={labelStyle}>Entry Trigger</label>
                 <select style={inputStyle} value={formData.entry} onChange={e => field("entry", e.target.value)}>
@@ -277,14 +432,35 @@ export default function StrategyBuilderPage() {
                 </div>
               </div>
 
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+                <div>
+                  <label style={labelStyle}>Risk Level</label>
+                  <select style={inputStyle} value={formData.risk} onChange={e => field("risk", e.target.value)}>
+                    <option>Conservative</option>
+                    <option>Moderate</option>
+                    <option>Aggressive</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Confidence Score</label>
+                  <input style={inputStyle} type="number" min={1} max={100} value={formData.confidence} onChange={e => field("confidence", e.target.value)} />
+                </div>
+              </div>
+
               <div>
-                <label style={labelStyle}>Risk Level</label>
-                <select style={inputStyle} value={formData.risk} onChange={e => field("risk", e.target.value)}>
-                  <option>Conservative</option>
-                  <option>Moderate</option>
-                  <option>Aggressive</option>
+                <label style={labelStyle}>Execution Mode</label>
+                <select style={inputStyle} value={formData.mode} onChange={e => field("mode", e.target.value)}>
+                  <option value="signal_only">Signal Only (Alerts)</option>
+                  <option value="fully_automated">Fully Automated (Webhook)</option>
                 </select>
               </div>
+
+              {formData.mode === "fully_automated" && (
+                <div>
+                  <label style={labelStyle}>Webhook Secret</label>
+                  <input style={inputStyle} type="password" value={formData.webhookSecret} onChange={e => field("webhookSecret", e.target.value)} placeholder="Enter your LUNA webhook secret" />
+                </div>
+              )}
 
               {formError && (
                 <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "#FF006E", padding: "6px 10px", background: "rgba(255,0,110,0.08)", border: "1px solid rgba(255,0,110,0.25)", borderRadius: 5 }}>
@@ -292,7 +468,7 @@ export default function StrategyBuilderPage() {
                 </div>
               )}
 
-              <div style={{ display: "flex", gap: 10, marginTop: 4 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 4, flexWrap: "wrap" }}>
                 <button style={btnStyle("#00F5FF", "rgba(0,245,255,0.1)", "rgba(0,245,255,0.4)")} onClick={handleSave}>
                   SAVE STRATEGY
                 </button>
@@ -300,6 +476,27 @@ export default function StrategyBuilderPage() {
                   {simRunning ? "SIMULATING..." : "RUN SIMULATION"}
                 </button>
               </div>
+
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button style={btnStyle("#00FF88", "rgba(0,255,136,0.1)", "rgba(0,255,136,0.4)")} onClick={handleExportPineScript}>
+                  EXPORT TO PINE SCRIPT
+                </button>
+                <button style={btnStyle("#FFB703", "rgba(255,183,3,0.1)", "rgba(255,183,3,0.4)")} onClick={() => setShowPayloadPreview(!showPayloadPreview)}>
+                  {showPayloadPreview ? "HIDE" : "SHOW"} PAYLOAD PREVIEW
+                </button>
+              </div>
+
+              {showPayloadPreview && (
+                <div style={{ background: "rgba(0,0,0,0.3)", border: "1px solid rgba(255,183,3,0.2)", borderRadius: 6, padding: 10 }}>
+                  <div style={labelStyle}>JSON Webhook Payload</div>
+                  <pre style={{ background: "rgba(0,0,0,0.5)", padding: 8, borderRadius: 4, overflow: "auto", fontSize: 9, color: "#00FF88", margin: 0 }}>
+                    {generatePayloadPreview()}
+                  </pre>
+                  <button style={btnStyle("#00FF88", "rgba(0,255,136,0.1)", "rgba(0,255,136,0.4)")} onClick={() => copyToClipboard(generatePayloadPreview())} style={{ marginTop: 8, width: "100%" }}>
+                    COPY PAYLOAD
+                  </button>
+                </div>
+              )}
 
               {simDone && (
                 <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 10, color: "#00FF88", padding: "7px 10px", background: "rgba(0,255,136,0.06)", border: "1px solid rgba(0,255,136,0.2)", borderRadius: 5 }}>
@@ -311,6 +508,26 @@ export default function StrategyBuilderPage() {
         </div>
 
       </div>
+
+      {/* Pine Script Export Modal */}
+      {showPineScript && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+          <NeonCard accent="green" padding={24} style={{ maxWidth: 700, maxHeight: "80vh", overflow: "auto" }}>
+            <SectionHeader title="PINE SCRIPT EXPORT" subtitle="Copy and paste into TradingView Pine Editor" accent="green" />
+            <pre style={{ background: "rgba(0,0,0,0.5)", padding: 12, borderRadius: 6, overflow: "auto", fontSize: 9, color: "#00FF88", marginBottom: 16, maxHeight: 400 }}>
+              {generatedPineScript}
+            </pre>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button style={btnStyle("#00FF88", "rgba(0,255,136,0.1)", "rgba(0,255,136,0.4)")} onClick={() => copyToClipboard(generatedPineScript)} style={{ flex: 1 }}>
+                COPY TO CLIPBOARD
+              </button>
+              <button style={btnStyle("#FF006E", "rgba(255,0,110,0.1)", "rgba(255,0,110,0.4)")} onClick={() => setShowPineScript(false)} style={{ flex: 1 }}>
+                CLOSE
+              </button>
+            </div>
+          </NeonCard>
+        </div>
+      )}
     </LunaLayout>
   );
 }

@@ -34,6 +34,8 @@ const BOT_ITEMS: NavItem[] = [
 const ANALYTICS_ITEMS: NavItem[] = [
   { href: "/economy-dashboard", label: "Economy Dashboard", icon: "⬡" },
   { href: "/portfolio", label: "Portfolio", icon: "◆" },
+  { href: "/performance-monitor", label: "Performance Monitor", icon: "📊", badge: "NEW", badgeColor: "#00F5FF" },
+  { href: "/signal-risk-monitor", label: "Signal & Risk", icon: "⚠", badge: "NEW", badgeColor: "#FFB703" },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
