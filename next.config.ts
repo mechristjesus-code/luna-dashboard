@@ -18,6 +18,8 @@ const nextConfig: NextConfig = {
   allowedDevOrigins: [
     "**.*.*",
   ],
+  // Static export support (used by Capacitor APK build)
+  ...(process.env.NEXT_EXPORT === 'true' ? { output: 'export' as const } : {}),
 };
 
 export default nextConfig;

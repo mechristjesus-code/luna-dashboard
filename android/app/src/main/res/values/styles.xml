@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- LUNA Dark Theme -->
+    <style name="AppTheme" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">#050810</item>
+        <item name="colorPrimaryDark">#050810</item>
+        <item name="colorAccent">#00F5FF</item>
+        <item name="android:statusBarColor">#050810</item>
+        <item name="android:navigationBarColor">#050810</item>
+        <item name="android:windowBackground">#050810</item>
+    </style>
+
+    <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
+        <item name="colorPrimary">#050810</item>
+        <item name="android:windowBackground">#050810</item>
+        <item name="postSplashScreenTheme">@style/AppTheme</item>
+    </style>
+</resources>

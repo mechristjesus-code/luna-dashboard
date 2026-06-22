@@ -1,0 +1,110 @@
+name: Build LUNA APK
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:   # allows manual trigger from GitHub UI
+
+jobs:
+  build-apk:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── 1. Checkout ─────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Node.js setup ────────────────────────────────────────
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      # ── 3. Next.js static export (for offline APK) ──────────────
+      - name: Build Next.js static export
+        run: pnpm build
+        env:
+          NEXT_EXPORT: true
+
+      # ── 4. Java / Android SDK setup ─────────────────────────────
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      # ── 5. Install Capacitor CLI ─────────────────────────────────
+      - name: Install Capacitor
+        run: |
+          pnpm add -D @capacitor/cli @capacitor/core @capacitor/android
+          npx cap sync android
+
+      # ── 6. Make gradlew executable ───────────────────────────────
+      - name: Grant execute permission for gradlew
+        run: chmod +x android/gradlew
+        working-directory: ${{ github.workspace }}
+
+      # ── 7. Build debug APK (no signing needed) ──────────────────
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+        working-directory: android
+
+      # ── 8. Upload APK as artifact ───────────────────────────────
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-dashboard-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+
+      # ── 9. Also build release APK (unsigned) ────────────────────
+      - name: Build Release APK (unsigned)
+        run: ./gradlew assembleRelease --no-daemon
+        working-directory: android
+        continue-on-error: true
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-dashboard-release-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30
+        continue-on-error: true
+
+  # ── Build ZIP of source code ─────────────────────────────────────
+  build-zip:
+    name: Package Source ZIP
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create source ZIP
+        run: |
+          zip -r luna-dashboard-source.zip . \
+            -x "node_modules/*" \
+            -x ".next/*" \
+            -x ".git/*" \
+            -x "*.log" \
+            -x ".local/*"
+
+      - name: Upload Source ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: luna-dashboard-source
+          path: luna-dashboard-source.zip
+          retention-days: 90

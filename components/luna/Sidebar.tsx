@@ -36,8 +36,9 @@ const ANALYTICS_ITEMS: NavItem[] = [
 ];
 
 const ADMIN_ITEMS: NavItem[] = [
-  { href: "/admin-terminal", label: "Admin Terminal", icon: "⌥", badge: "NEW", badgeColor: "#FFB700" },
+  { href: "/admin-terminal", label: "Admin Terminal", icon: "⌥", badge: "TERM", badgeColor: "#FFB700" },
   { href: "/api-docs", label: "API Docs", icon: "📋", badge: "REST", badgeColor: "#9B5DE5" },
+  { href: "/downloads", label: "Downloads", icon: "⬇", badge: "ZIP+APK", badgeColor: "#00FF88" },
 ];
 
 const LAYER_GROUPS = [

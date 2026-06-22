@@ -5,6 +5,11 @@
   "scripts": {
     "dev": "next dev -p 13000",
     "build": "next build",
+    "build:export": "NEXT_EXPORT=true next build",
+    "build:apk": "pnpm build:export && npx cap sync android && cd android && ./gradlew assembleDebug",
+    "build:zip": "zip -r luna-dashboard.zip . -x 'node_modules/*' -x '.next/*' -x '.git/*' -x '*.log'",
+    "cap:sync": "npx cap sync android",
+    "cap:open": "npx cap open android",
     "start": "next start -p 13000",
     "lint": "eslint --fix",
     "db:generate": "drizzle-kit generate",
