@@ -1,0 +1,32 @@
+{
+  "name": "LUNA AI Command Center",
+  "short_name": "LUNA",
+  "description": "LUNA V1–V12 AI Dashboard — Crypto trading bots, signals, economy simulation",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#050810",
+  "theme_color": "#00F5FF",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Command Center", "url": "/", "description": "Main dashboard" },
+    { "name": "Bot Engine", "url": "/bot-engine", "description": "Manage trading bots" },
+    { "name": "Crypto Signals", "url": "/crypto-signals", "description": "Live signals" },
+    { "name": "Admin Terminal", "url": "/admin-terminal", "description": "Termux API console" }
+  ],
+  "categories": ["finance", "productivity"],
+  "lang": "en"
+}
