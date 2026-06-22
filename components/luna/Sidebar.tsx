@@ -38,6 +38,12 @@ const ANALYTICS_ITEMS: NavItem[] = [
   { href: "/signal-risk-monitor", label: "Signal & Risk", icon: "⚠", badge: "NEW", badgeColor: "#FFB703" },
 ];
 
+const WALLET_ITEMS: NavItem[] = [
+  { href: "/wallet-banking", label: "Wallet & Banking", icon: "💳", badge: "NEW", badgeColor: "#00FF88" },
+  { href: "/asset-performance", label: "Asset Performance", icon: "📈", badge: "NEW", badgeColor: "#9B5DE5" },
+  { href: "/transaction-ledger", label: "Transaction Ledger", icon: "📋", badge: "NEW", badgeColor: "#FFB703" },
+];
+
 const ADMIN_ITEMS: NavItem[] = [
   { href: "/admin-terminal", label: "Admin Terminal", icon: "⌥", badge: "TERM", badgeColor: "#FFB700" },
   { href: "/api-docs", label: "API Docs", icon: "📋", badge: "REST", badgeColor: "#9B5DE5" },
@@ -209,6 +215,22 @@ export function Sidebar() {
             <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 5, marginBottom: 1, background: isActive(item.href) ? "rgba(0,255,136,0.07)" : "transparent", border: isActive(item.href) ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", cursor: "pointer" }}>
               <span style={{ fontSize: 11, color: isActive(item.href) ? "#00FF88" : "rgba(255,255,255,0.4)", width: 16, textAlign: "center" }}>{item.icon}</span>
               <span style={{ fontFamily: "var(--font-inter-tight, sans-serif)", fontSize: 11, fontWeight: 500, color: isActive(item.href) ? "#00FF88" : "rgba(255,255,255,0.65)", flex: 1 }}>{item.label}</span>
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Wallet section */}
+      <div style={{ padding: "4px 8px 0" }}>
+        <div style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 9, color: "rgba(0,255,136,0.6)", letterSpacing: "0.18em", padding: "6px 8px 4px", textTransform: "uppercase", borderTop: "1px solid rgba(0,255,136,0.08)", marginTop: 2 }}>
+          Wallet & Finance
+        </div>
+        {WALLET_ITEMS.map((item) => (
+          <Link key={item.href} href={item.href} style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderRadius: 5, marginBottom: 1, background: isActive(item.href) ? "rgba(0,255,136,0.07)" : "transparent", border: isActive(item.href) ? "1px solid rgba(0,255,136,0.2)" : "1px solid transparent", cursor: "pointer" }}>
+              <span style={{ fontSize: 11, color: isActive(item.href) ? "#00FF88" : "rgba(255,255,255,0.4)", width: 16, textAlign: "center" }}>{item.icon}</span>
+              <span style={{ fontFamily: "var(--font-inter-tight, sans-serif)", fontSize: 11, fontWeight: 500, color: isActive(item.href) ? "#00FF88" : "rgba(255,255,255,0.65)", flex: 1 }}>{item.label}</span>
+              {item.badge && <span style={{ fontFamily: "var(--font-jetbrains-mono, monospace)", fontSize: 8, color: item.badgeColor ?? "#00FF88", border: `1px solid ${item.badgeColor ?? "#00FF88"}`, borderRadius: 3, padding: "1px 4px" }}>{item.badge}</span>}
             </div>
           </Link>
         ))}

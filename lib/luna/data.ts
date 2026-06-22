@@ -96,6 +96,17 @@ export interface SafetyOrder {
   filled: boolean;
 }
 
+export interface BotFund {
+  botId: string;
+  currency: string;           // e.g., "USDT", "BTC", "ETH"
+  balance: number;            // available balance
+  reserved: number;           // locked in active trades
+  totalDeposited: number;     // cumulative deposits
+  totalWithdrawn: number;     // cumulative withdrawals
+  createdAt: Date;
+  lastUpdated: Date;
+}
+
 export interface DCABot {
   id: string;
   name: string;
@@ -103,6 +114,8 @@ export interface DCABot {
   exchange: string;
   mode: 'simulation' | 'live';
   status: 'running' | 'paused' | 'stopped';
+  // NEW: Dedicated Bot Fund
+  fund: BotFund;              // bot's own trading fund
   // Order config
   baseOrderSize: number;      // USDT
   safetyOrderSize: number;    // USDT (first SO)
@@ -154,6 +167,8 @@ export interface GridBot {
   exchange: string;
   mode: 'simulation' | 'live';
   status: 'running' | 'paused' | 'stopped';
+  // NEW: Dedicated Bot Fund
+  fund: BotFund;              // bot's own trading fund
   // Grid config
   upperPrice: number;
   lowerPrice: number;
@@ -182,6 +197,8 @@ export interface SignalBot {
   exchange: string;
   mode: 'simulation' | 'live';
   status: 'running' | 'paused' | 'stopped';
+  // NEW: Dedicated Bot Fund
+  fund: BotFund;              // bot's own trading fund
   // Webhook
   webhookUrl: string;
   signalSource: 'TradingView' | 'Custom' | 'LUNA';
@@ -230,6 +247,8 @@ export interface ArbitrageBot {
   exchanges: string[];        // exchanges to compare
   mode: 'simulation' | 'live';
   status: 'running' | 'paused' | 'stopped';
+  // NEW: Dedicated Bot Fund
+  fund: BotFund;              // bot's own trading fund
   // Config
   minSpreadPct: number;       // minimum spread % to trigger
   maxInvestmentPerTrade: number; // USDT
@@ -906,4 +925,226 @@ export function generateRiskHeatmap(): RiskHeatmapCell[] {
     { botName: 'TV RSI', coinPair: 'BTC/USDT', riskScore: 48, exposure: 800, drawdown: 3.4, volatility: 3.8 },
     { botName: 'LUNA SIG', coinPair: 'ETH/USDT', riskScore: 52, exposure: 1200, drawdown: 4.1, volatility: 5.2 },
   ];
+}
+
+
+// ── NEW: Crypto Wallet & Banking System ────────────────────────────
+export type AccountType = 'trading' | 'savings' | 'emergency' | 'profit';
+export type TransactionType = 'deposit' | 'withdrawal' | 'transfer' | 'bot_profit' | 'fee' | 'auto_sweep';
+export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
+
+export interface CryptoAsset {
+  symbol: string;
+  name: string;
+  balance: number;          // quantity
+  usdValue: number;         // current USD value
+  network?: string;         // blockchain network (Ethereum, Solana, etc.)
+  walletAddress?: string;   // public wallet address
+  priceUsd: number;
+  change24h: number;        // % change in last 24h
+  volatility?: number;      // annualized volatility %
+}
+
+export interface WalletAccount {
+  id: string;
+  accountType: AccountType;
+  name: string;             // e.g., "Trading Wallet", "Profit Savings"
+  description?: string;
+  totalUsdValue: number;
+  assets: CryptoAsset[];
+  createdAt: Date;
+  updatedAt: Date;
+  // NEW: Auto-sweep settings
+  autoSweepEnabled?: boolean;
+  autoSweepPercentage?: number;  // % of profits to auto-sweep
+  autoSweepTarget?: string;      // target account ID
+}
+
+export interface Transaction {
+  id: string;
+  accountId: string;
+  type: TransactionType;
+  status: TransactionStatus;
+  fromAsset: string;       // symbol (e.g., "BTC")
+  toAsset: string;         // symbol (e.g., "USDT")
+  fromAmount: number;
+  toAmount: number;
+  usdValue: number;
+  fee: number;             // in USD
+  exchangeRate?: number;   // if swap
+  botId?: string;          // if from bot profit
+  relatedAccountId?: string; // if transfer
+  description: string;
+  timestamp: Date;
+  completedAt?: Date;
+  txHash?: string;         // blockchain transaction hash
+  notes?: string;
+}
+
+export interface PortfolioSnapshot {
+  timestamp: Date;
+  totalUsdValue: number;
+  byAsset: { symbol: string; usdValue: number; percentage: number }[];
+  byAccount: { accountId: string; usdValue: number; percentage: number }[];
+  dayChange: number;       // USD
+  dayChangePercent: number; // %
+}
+
+// Seed data for wallets
+export const SEED_WALLET_ACCOUNTS: WalletAccount[] = [
+  {
+    id: "wallet_trading",
+    accountType: "trading",
+    name: "Active Trading",
+    description: "Primary wallet for bot operations",
+    totalUsdValue: 45230.50,
+    assets: [
+      { symbol: "BTC", name: "Bitcoin", balance: 0.85, usdValue: 35700, network: "Bitcoin", priceUsd: 42000, change24h: 2.3, volatility: 38.4 },
+      { symbol: "ETH", name: "Ethereum", balance: 5.2, usdValue: 9360, network: "Ethereum", priceUsd: 1800, change24h: 1.8, volatility: 44.2 },
+      { symbol: "USDT", name: "Tether", balance: 170.5, usdValue: 170.5, network: "Ethereum", priceUsd: 1.0, change24h: 0.0, volatility: 0.1 },
+    ],
+    createdAt: new Date("2024-01-15"),
+    updatedAt: new Date(),
+    autoSweepEnabled: true,
+    autoSweepPercentage: 20,
+    autoSweepTarget: "wallet_savings",
+  },
+  {
+    id: "wallet_savings",
+    accountType: "savings",
+    name: "Profit Savings Vault",
+    description: "Long-term profit accumulation",
+    totalUsdValue: 28450.75,
+    assets: [
+      { symbol: "BTC", name: "Bitcoin", balance: 0.45, usdValue: 18900, network: "Bitcoin", priceUsd: 42000, change24h: 2.3, volatility: 38.4 },
+      { symbol: "ETH", name: "Ethereum", balance: 3.0, usdValue: 5400, network: "Ethereum", priceUsd: 1800, change24h: 1.8, volatility: 44.2 },
+      { symbol: "USDT", name: "Tether", balance: 4150.75, usdValue: 4150.75, network: "Ethereum", priceUsd: 1.0, change24h: 0.0, volatility: 0.1 },
+    ],
+    createdAt: new Date("2024-02-01"),
+    updatedAt: new Date(),
+  },
+  {
+    id: "wallet_emergency",
+    accountType: "emergency",
+    name: "Emergency Reserve",
+    description: "Backup funds for margin calls or opportunities",
+    totalUsdValue: 12000.00,
+    assets: [
+      { symbol: "USDT", name: "Tether", balance: 12000, usdValue: 12000, network: "Ethereum", priceUsd: 1.0, change24h: 0.0, volatility: 0.1 },
+    ],
+    createdAt: new Date("2024-03-10"),
+    updatedAt: new Date(),
+  },
+];
+
+export const SEED_TRANSACTIONS: Transaction[] = [
+  {
+    id: "tx_001",
+    accountId: "wallet_trading",
+    type: "deposit",
+    status: "completed",
+    fromAsset: "USDT",
+    toAsset: "USDT",
+    fromAmount: 5000,
+    toAmount: 5000,
+    usdValue: 5000,
+    fee: 0,
+    description: "Initial deposit",
+    timestamp: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+    txHash: "0x1234567890abcdef",
+  },
+  {
+    id: "tx_002",
+    accountId: "wallet_trading",
+    type: "bot_profit",
+    status: "completed",
+    fromAsset: "USDT",
+    toAsset: "USDT",
+    fromAmount: 850,
+    toAmount: 850,
+    usdValue: 850,
+    fee: 0,
+    botId: "arb-bot-1",
+    description: "Profit from ARB-BOT-1",
+    timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "tx_003",
+    accountId: "wallet_trading",
+    type: "auto_sweep",
+    status: "completed",
+    fromAsset: "USDT",
+    toAsset: "USDT",
+    fromAmount: 170,
+    toAmount: 170,
+    usdValue: 170,
+    fee: 0,
+    relatedAccountId: "wallet_savings",
+    description: "Auto-sweep 20% of profits to Savings",
+    timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000),
+  },
+  {
+    id: "tx_004",
+    accountId: "wallet_trading",
+    type: "transfer",
+    status: "completed",
+    fromAsset: "BTC",
+    toAsset: "BTC",
+    fromAmount: 0.1,
+    toAmount: 0.1,
+    usdValue: 4200,
+    fee: 5,
+    relatedAccountId: "wallet_savings",
+    description: "Transfer 0.1 BTC to Savings",
+    timestamp: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    completedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+    txHash: "0xabcdef1234567890",
+  },
+  {
+    id: "tx_005",
+    accountId: "wallet_trading",
+    type: "withdrawal",
+    status: "pending",
+    fromAsset: "ETH",
+    toAsset: "ETH",
+    fromAmount: 1.5,
+    toAmount: 1.5,
+    usdValue: 2700,
+    fee: 10,
+    description: "Withdrawal to external wallet",
+    timestamp: new Date(Date.now() - 1 * 60 * 60 * 1000),
+    notes: "Pending blockchain confirmation",
+  },
+];
+
+export function generatePortfolioSnapshot(): PortfolioSnapshot {
+  const allAssets = SEED_WALLET_ACCOUNTS.flatMap(acc => acc.assets);
+  const totalUsdValue = SEED_WALLET_ACCOUNTS.reduce((sum, acc) => sum + acc.totalUsdValue, 0);
+  
+  const byAsset = Array.from(
+    allAssets.reduce((map, asset) => {
+      const existing = map.get(asset.symbol) || { symbol: asset.symbol, usdValue: 0 };
+      existing.usdValue += asset.usdValue;
+      map.set(asset.symbol, existing);
+      return map;
+    }, new Map<string, any>()).values()
+  ).map(item => ({ ...item, percentage: (item.usdValue / totalUsdValue) * 100 }));
+
+  const byAccount = SEED_WALLET_ACCOUNTS.map(acc => ({
+    accountId: acc.id,
+    usdValue: acc.totalUsdValue,
+    percentage: (acc.totalUsdValue / totalUsdValue) * 100,
+  }));
+
+  return {
+    timestamp: new Date(),
+    totalUsdValue,
+    byAsset,
+    byAccount,
+    dayChange: 1250.50,
+    dayChangePercent: 2.8,
+  };
 }
